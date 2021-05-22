@@ -6,6 +6,7 @@ import org.greenrobot.eventbus.Subscribe
 import org.greenrobot.eventbus.ThreadMode
 import xyz.dma.ecgmobile.entity.BoardInfo
 import xyz.dma.ecgmobile.entity.ChannelData
+import xyz.dma.ecgmobile.event.ShareDataEvent
 import xyz.dma.ecgmobile.event.board.BoardConnectedEvent
 import xyz.dma.ecgmobile.event.board.BoardDisconnectedEvent
 import xyz.dma.ecgmobile.event.command.ClearDataCommand
@@ -86,20 +87,17 @@ class DataCollector(private val parentFile: File) {
 
     @Subscribe(threadMode = ThreadMode.ASYNC)
     fun onShareCommand(command: ShareDataCommand) {
-        if(command.dataReady) {
-            return
-        }
         val recordFile = File(parentFile, "data-${System.currentTimeMillis()}.zip")
         val files = ArrayList<File>()
         collectedData.values.forEach {
             it.forEach { file -> files.add(file) }
         }
         if(files.isEmpty()) {
-            EventBus.getDefault().post(ShareDataCommand(true, null))
+            EventBus.getDefault().post(ShareDataEvent(null))
             return
         }
         FileUtils.zip(files, recordFile)
-        EventBus.getDefault().post(ShareDataCommand(true, recordFile))
+        EventBus.getDefault().post(ShareDataEvent(recordFile))
     }
 
     @Subscribe(threadMode = ThreadMode.ASYNC)

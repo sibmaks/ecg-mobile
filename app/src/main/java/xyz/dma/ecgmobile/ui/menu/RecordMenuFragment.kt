@@ -56,7 +56,7 @@ class RecordMenuFragment : Fragment() {
     }
 
     private fun onShare() {
-        EventBus.getDefault().post(ShareDataCommand(false, null))
+        EventBus.getDefault().post(ShareDataCommand())
     }
 
     override fun onResume() {

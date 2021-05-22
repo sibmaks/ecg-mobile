@@ -11,10 +11,10 @@ import org.greenrobot.eventbus.ThreadMode
 import xyz.dma.ecgmobile.entity.BoardInfo
 import xyz.dma.ecgmobile.entity.ChannelData
 import xyz.dma.ecgmobile.event.ChannelChangedEvent
+import xyz.dma.ecgmobile.event.ShareDataEvent
 import xyz.dma.ecgmobile.event.board.BoardConnectedEvent
 import xyz.dma.ecgmobile.event.board.BoardDisconnectedEvent
 import xyz.dma.ecgmobile.event.command.ChangeChannelCommand
-import xyz.dma.ecgmobile.event.command.ShareDataCommand
 import xyz.dma.ecgmobile.queue.QueueService
 import java.util.concurrent.TimeUnit
 
@@ -42,13 +42,11 @@ class MainActivity : AppCompatActivity() {
     }
 
     @Subscribe(threadMode = ThreadMode.ASYNC)
-    fun onShareCommand(command: ShareDataCommand) {
-        if(!command.dataReady || command.data == null) {
-            if(command.dataReady) {
-                runOnUiThread {
-                    Toast.makeText(applicationContext, resources.getText(R.string.nothing_to_share), Toast.LENGTH_LONG)
-                        .show()
-                }
+    fun onShareCommand(event: ShareDataEvent) {
+        if(event.file == null) {
+            runOnUiThread {
+                Toast.makeText(applicationContext, resources.getText(R.string.nothing_to_share), Toast.LENGTH_LONG)
+                    .show()
             }
             return
         }
@@ -57,7 +55,7 @@ class MainActivity : AppCompatActivity() {
         intentShareFile.type = "application/zip"
         intentShareFile.putExtra(
             Intent.EXTRA_STREAM,
-            FileProvider.getUriForFile(this@MainActivity, "xyz.dma.ecgmobile.FILE_PROVIDER", command.data)
+            FileProvider.getUriForFile(this@MainActivity, "xyz.dma.ecgmobile.FILE_PROVIDER", event.file)
         )
         intentShareFile.putExtra(Intent.EXTRA_TEXT, getString(R.string.title_share))
 
