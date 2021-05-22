@@ -33,7 +33,6 @@ class MainActivity : AppCompatActivity() {
 
     @Subscribe(threadMode = ThreadMode.ASYNC)
     fun onShareCommand(shareDataCommand: ShareDataCommand) {
-        println("Here we must share data")
     }
 
     @Subscribe(threadMode = ThreadMode.ASYNC)
@@ -43,7 +42,6 @@ class MainActivity : AppCompatActivity() {
 
     @Subscribe(threadMode = ThreadMode.ASYNC)
     fun onClearCommand(clearDataCommand: ClearDataCommand) {
-        println("On clear data command")
         EventBus.getDefault().post(BoardConnectedEvent(BoardInfo("ADS1293", "0.0.0", 3, DataType.INT32, Pair(-2000000f, 2000000f))))
     }
 }
