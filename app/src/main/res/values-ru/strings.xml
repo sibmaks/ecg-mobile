@@ -3,7 +3,9 @@
     <string name="title_previous">Предыдущий</string>
     <string name="title_next">Следующий</string>
     <string name="title_play">Запустить</string>
-    <string name="title_share">Share</string>
-    <string name="title_recording">Recording</string>
-    <string name="title_clear">Clear</string>
+    <string name="title_share">Поделиться</string>
+    <string name="title_recording">Запись</string>
+    <string name="title_clear">Очистить</string>
+    <string name="title_channel">Канал: %s</string>
+    <string name="title_board_name">Плата: %s</string>
 </resources>

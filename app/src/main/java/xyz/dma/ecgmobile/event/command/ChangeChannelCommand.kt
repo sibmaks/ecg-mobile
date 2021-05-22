@@ -1,4 +1,3 @@
 package xyz.dma.ecgmobile.event.command
 
-class ChangeChannelCommand(val up: Boolean) {
-}
+class ChangeChannelCommand(val up: Boolean)

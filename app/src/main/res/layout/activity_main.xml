@@ -29,5 +29,16 @@
             app:layout_constraintLeft_toLeftOf="parent"
             app:layout_constraintRight_toRightOf="parent"
             android:background="?android:attr/windowBackground"/>
+    <fragment
+            android:id="@+id/ecg_chart_fragment"
+            android:name="xyz.dma.ecgmobile.ui.ecg_chart.ECGChartFragment"
+            tools:layout="@layout/fragment_ecg_chart"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            app:layout_constraintLeft_toLeftOf="parent"
+            app:layout_constraintRight_toRightOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/record_menu_fragment"
+            app:layout_constraintBottom_toTopOf="@id/channel_menu_fragment"
+            app:defaultNavHost="true"/>
 
 </androidx.constraintlayout.widget.ConstraintLayout>

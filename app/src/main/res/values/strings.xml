@@ -6,4 +6,6 @@
     <string name="title_share">Share</string>
     <string name="title_recording">Recording</string>
     <string name="title_clear">Clear</string>
+    <string name="title_channel">Channel: %s</string>
+    <string name="title_board_name">Board: %s</string>
 </resources>

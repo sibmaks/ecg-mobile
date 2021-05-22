@@ -1,4 +1,3 @@
 package xyz.dma.ecgmobile.event
 
-class ClearDataEvent {
-}
+class ClearDataEvent
