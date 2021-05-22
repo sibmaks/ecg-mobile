@@ -1,6 +1,7 @@
 package xyz.dma.ecgmobile.queue
 
 import android.util.Log
+import java.util.*
 import java.util.concurrent.*
 import java.util.concurrent.locks.Lock
 import java.util.concurrent.locks.ReentrantLock
@@ -10,7 +11,7 @@ object QueueService {
     private val creationLock: Lock = ReentrantLock()
     private val subscriptionLock: Lock = ReentrantLock()
     // queue name -> function
-    private val subscribers = ConcurrentHashMap<String, (Any) -> Unit>()
+    private val subscribers = ConcurrentHashMap<String, MutableList<(Any) -> Unit>>()
     // queue name -> queue
     private val queues = ConcurrentHashMap<String, BlockingQueue<Any>>()
     private val executionService = Executors.newFixedThreadPool(4)
@@ -34,11 +35,17 @@ object QueueService {
         try {
             if(blockingQueue != null) {
                 try {
-                    val subscriber = subscribers[queue]
-                    if(subscriber != null) {
+                    val subscribers = subscribers[queue]
+                    if(subscribers != null && subscribers.isNotEmpty()) {
                         val event = blockingQueue.poll(100, TimeUnit.MILLISECONDS)
                         if(event != null) {
-                            subscriber(event)
+                            subscribers.forEach {
+                                try {
+                                    it(event)
+                                } catch (e: Exception) {
+                                    Log.e("EM-QueueService", e.message, e)
+                                }
+                            }
                         }
                     }
                 } catch (ignore: InterruptedException) {
@@ -53,15 +60,16 @@ object QueueService {
     }
 
     fun subscribe(queue: String, consumer: (Any) -> Unit) {
-        var subscriber = subscribers[queue]
-        if(subscriber == null) {
+        var queueSubscribers = subscribers[queue]
+        if(queueSubscribers == null) {
             subscriptionLock.withLock {
-                subscriber = subscribers[queue]
-                if(subscriber == null) {
-                    subscribers[queue] = consumer
+                queueSubscribers = subscribers[queue]
+                if(queueSubscribers == null) {
+                    subscribers[queue] = Collections.synchronizedList(ArrayList())
                     executionService.submit{ consumeEvent(queue) }
                 }
             }
         }
+        subscribers[queue]?.add(consumer)
     }
 }

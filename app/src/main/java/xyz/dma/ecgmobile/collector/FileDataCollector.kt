@@ -1,4 +1,4 @@
-package xyz.dma.ecgmobile
+package xyz.dma.ecgmobile.collector
 
 import android.util.Log
 import org.greenrobot.eventbus.EventBus
@@ -21,7 +21,7 @@ import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
 
-class DataCollector(private val parentFile: File) {
+class FileDataCollector(private val parentFile: File) {
     private val recordsPath = File(parentFile, "records")
     // board name -> collected data
     private val activeFilesLock = ReentrantLock()
