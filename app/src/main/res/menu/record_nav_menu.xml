@@ -11,6 +11,7 @@
             android:id="@+id/record"
             android:icon="@drawable/baseline_radio_button_unchecked_24"
             android:title=""
+            android:enabled="false"
     />
 
     <item

@@ -11,6 +11,7 @@
             android:id="@+id/play"
             android:icon="@drawable/baseline_play_arrow_24"
             android:title=""
+            android:enabled="false"
     />
 
     <item

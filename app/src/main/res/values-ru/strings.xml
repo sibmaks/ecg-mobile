@@ -8,4 +8,6 @@
     <string name="title_clear">Очистить</string>
     <string name="title_channel">Канал: %s</string>
     <string name="title_board_name">Плата: %s</string>
+    <string name="caption_save_data">Сохранить данные</string>
+    <string name="nothing_to_share">Nothing to share</string>
 </resources>

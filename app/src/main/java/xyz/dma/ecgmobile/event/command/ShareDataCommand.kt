@@ -1,3 +1,5 @@
 package xyz.dma.ecgmobile.event.command
 
-class ShareDataCommand
+import java.io.File
+
+class ShareDataCommand(val dataReady: Boolean, val data: File?)
