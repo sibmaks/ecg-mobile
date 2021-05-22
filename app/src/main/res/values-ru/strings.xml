@@ -1,0 +1,9 @@
+<resources>
+    <string name="app_name">ECG Mobile</string>
+    <string name="title_previous">Предыдущий</string>
+    <string name="title_next">Следующий</string>
+    <string name="title_play">Запустить</string>
+    <string name="title_share">Share</string>
+    <string name="title_recording">Recording</string>
+    <string name="title_clear">Clear</string>
+</resources>
