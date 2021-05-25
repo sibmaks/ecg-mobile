@@ -18,6 +18,7 @@ import java.io.BufferedWriter
 import java.io.File
 import java.io.OutputStreamWriter
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
 
@@ -25,7 +26,7 @@ class FileDataCollector(private val parentFile: File) {
     private val recordsPath = File(parentFile, "records")
     // board name -> collected data
     private val activeFilesLock = ReentrantLock()
-    private val collectedData = ConcurrentHashMap<BoardInfo, List<File>>()
+    private val collectedData = ConcurrentHashMap<BoardInfo, List<Pair<File, AtomicBoolean>>>()
     private val writers = ConcurrentHashMap<File, BufferedWriter>()
     private var activeBoard: BoardInfo? = null
     var collectData = false
@@ -45,11 +46,12 @@ class FileDataCollector(private val parentFile: File) {
                 if (list != null && collectData) {
                     for (channel in list.indices) {
                         try {
-                            val bufferedWriter = writers[list[channel]]
+                            val bufferedWriter = writers[list[channel].first]
                             if (bufferedWriter != null) {
                                 bufferedWriter.write(data.data[channel].toString())
                                 bufferedWriter.newLine()
                                 bufferedWriter.flush()
+                                list[channel].second.set(true)
                             }
                         } catch (e: Exception) {
                             Log.e("EM-DataCollector", e.message, e)
@@ -90,7 +92,7 @@ class FileDataCollector(private val parentFile: File) {
         val recordFile = File(parentFile, "data-${System.currentTimeMillis()}.zip")
         val files = ArrayList<File>()
         collectedData.values.forEach {
-            it.forEach { file -> files.add(file) }
+            it.filter { fi -> !fi.second.get() }.forEach { fi -> files.add(fi.first) }
         }
         if(files.isEmpty()) {
             EventBus.getDefault().post(ShareDataEvent(null))
@@ -120,8 +122,8 @@ class FileDataCollector(private val parentFile: File) {
     private fun createFiles(boardInfo: BoardInfo) {
         val boardFiles = collectedData[boardInfo]
         if(boardFiles == null) {
-            val list = ArrayList<File>()
-            for (channel in 1..boardInfo.channels) {
+            val list = ArrayList<Pair<File, AtomicBoolean>>()
+            for (channel in 1u..boardInfo.channels) {
                 val file = File(
                     recordsPath,
                     "${boardInfo.name}-channel-${channel}-ecg-records-${System.currentTimeMillis()}.csv"
@@ -133,7 +135,7 @@ class FileDataCollector(private val parentFile: File) {
                 bufferedWriter.write("Channel: $channel\n")
                 bufferedWriter.flush()
                 writers[file] = bufferedWriter
-                list.add(file)
+                list.add(Pair(file, AtomicBoolean(false)))
             }
             collectedData[boardInfo] = list
         }
@@ -153,7 +155,7 @@ class FileDataCollector(private val parentFile: File) {
         collectedData.forEach {
             it.value.forEach { file ->
                 try {
-                    file.delete()
+                    file.first.delete()
                 } catch (e: Exception) {
                     Log.e("EM-DataCollector", e.message, e)
                 }

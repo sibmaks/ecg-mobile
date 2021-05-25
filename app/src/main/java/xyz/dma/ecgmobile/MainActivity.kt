@@ -11,11 +11,13 @@ import org.greenrobot.eventbus.ThreadMode
 import xyz.dma.ecgmobile.collector.ChannelDataCollector
 import xyz.dma.ecgmobile.collector.FileDataCollector
 import xyz.dma.ecgmobile.event.ShareDataEvent
+import xyz.dma.ecgmobile.service.BoardService
 
 
 class MainActivity : AppCompatActivity() {
     private lateinit var fileDataCollector: FileDataCollector
     private lateinit var channelDataCollector: ChannelDataCollector
+    private lateinit var boardService: BoardService
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -23,6 +25,7 @@ class MainActivity : AppCompatActivity() {
 
         fileDataCollector = FileDataCollector(filesDir)
         channelDataCollector = ChannelDataCollector(resources.getInteger(R.integer.dots_counts))
+        boardService = BoardService(this)
     }
 
     override fun onResume() {
@@ -30,6 +33,7 @@ class MainActivity : AppCompatActivity() {
         EventBus.getDefault().register(this)
         fileDataCollector.onResume()
         channelDataCollector.onResume()
+        boardService.onStart()
     }
 
     override fun onPause() {
@@ -37,6 +41,12 @@ class MainActivity : AppCompatActivity() {
         EventBus.getDefault().unregister(this)
         fileDataCollector.onPause()
         channelDataCollector.onPause()
+        boardService.onStop()
+    }
+
+    override fun onStop() {
+        super.onStop()
+        boardService.onStop()
     }
 
     @Subscribe(threadMode = ThreadMode.ASYNC)

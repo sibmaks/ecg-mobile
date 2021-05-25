@@ -1,5 +1,6 @@
 package xyz.dma.ecgmobile.collector
 
+import android.util.Log
 import com.github.mikephil.charting.data.Entry
 import org.greenrobot.eventbus.EventBus
 import org.greenrobot.eventbus.Subscribe
@@ -12,8 +13,8 @@ import xyz.dma.ecgmobile.event.command.PlayCommand
 import xyz.dma.ecgmobile.queue.QueueService
 import xyz.dma.ecgmobile.utils.NumberConverter
 import java.util.concurrent.ConcurrentHashMap
-import kotlin.math.sin
-import kotlin.random.Random
+
+private const val TAG = "EM-ChannelDataCollector"
 
 class ChannelDataCollector(private val maxValue: Int) {
     private val collectedData = ConcurrentHashMap<Int, List<Entry>>()
@@ -30,9 +31,11 @@ class ChannelDataCollector(private val maxValue: Int) {
         if (data is ChannelData) {
             if(data.data.size == collectedData.size) {
                 for (channel in data.data.indices) {
-                    val list = collectedData[channel]
+                    val list = collectedData[channel + 1]
                     if(list != null) {
                         list[index].y = data.data[channel]
+                    } else {
+                        Log.w(TAG, "Channel list not found $channel")
                     }
                 }
                 if(index + 1 >= maxValue) {
@@ -40,7 +43,11 @@ class ChannelDataCollector(private val maxValue: Int) {
                 } else {
                     index++
                 }
+            } else {
+                Log.w(TAG, "Different channels size, was: ${data.data.size}, expected: ${collectedData.size}")
             }
+        } else {
+            Log.w(TAG, "Invalid event type")
         }
     }
 
@@ -59,19 +66,19 @@ class ChannelDataCollector(private val maxValue: Int) {
 
     @Subscribe(threadMode = ThreadMode.ASYNC)
     fun onBoardConnected(event: BoardConnectedEvent) {
-        val random = Random(System.currentTimeMillis())
-        if(event.boardInfo.channels > collectedData.size) {
-            for(i in (collectedData.size + 1)..event.boardInfo.channels) {
+        if(event.boardInfo.channels > collectedData.size.toUInt()) {
+            for(i in (collectedData.size + 1)..event.boardInfo.channels.toInt()) {
                 val list = ArrayList<Entry>()
                 for(j in 0 until maxValue) {
-                    //list.add(Entry(j.toFloat(), 0f))
-                    //list.add(Entry(j.toFloat(), random.nextFloat() * 1000000))
-                    list.add(Entry(j.toFloat(), sin(Math.toRadians(j.toDouble() * i)).toFloat() * 100000))
+                    list.add(Entry(j.toFloat(), 0f))
+                    /*list.add(Entry(j.toFloat(),
+                        event.boardInfo.valuesRange.first.coerceAtLeast(sin(Math.toRadians(j.toDouble() * i)).toFloat() * event.boardInfo.valuesRange.second)
+                    ))*/
                 }
                 collectedData[i] = list
             }
         }
-        channels = event.boardInfo.channels
+        channels = event.boardInfo.channels.toInt()
         activeChannel = 1
         val list = collectedData[activeChannel]
         if(list != null) {
