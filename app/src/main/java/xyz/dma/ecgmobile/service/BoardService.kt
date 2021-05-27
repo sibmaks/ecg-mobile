@@ -10,8 +10,9 @@ import android.util.Log
 import org.greenrobot.eventbus.EventBus
 import org.greenrobot.eventbus.Subscribe
 import org.greenrobot.eventbus.ThreadMode
+import xyz.dma.ecgmobile.R
 import xyz.dma.ecgmobile.entity.BoardInfo
-import xyz.dma.ecgmobile.entity.ChannelData
+import xyz.dma.ecgmobile.event.AlertTriggeredEvent
 import xyz.dma.ecgmobile.event.board.BoardConnectedEvent
 import xyz.dma.ecgmobile.event.board.BoardDisconnectedEvent
 import xyz.dma.ecgmobile.event.command.PlayCommand
@@ -31,7 +32,6 @@ class BoardService(context: Context) {
     private val permissionIntent = PendingIntent.getBroadcast(context, 0, Intent(ACTION_USB_PERMISSION), 0)
     private val serialSocket = SerialSocket(context.getSystemService(Context.USB_SERVICE) as UsbManager, permissionIntent)
     private var connectedBoard: BoardInfo? = null
-    private var previousDataId: UInt = 0u
     private var connectionLock = ReentrantLock()
     private var dataLock = ReentrantLock()
     private val executorService = Executors.newSingleThreadExecutor()
@@ -60,45 +60,28 @@ class BoardService(context: Context) {
             }
         }, filter)
 
+        serialSocket.addListener(BoardResponseType.TOO_SLOW_ERROR) {
+            EventBus.getDefault().post(AlertTriggeredEvent(R.string.error_too_slow))
+        }
+
         serialSocket.addListener(BoardResponseType.DATA) {
-            val maxData = connectedBoard?.maxDataToSend
             val channels = connectedBoard?.channels
             val data = it.data?.asUByteArray()
-            if(maxData != null && channels != null && data != null && data.size >= 8 && data.size % 4 == 0) {
+            if(channels != null && data != null && data.size > 4 && data.size % 4 == 0) {
                 dataLock.withLock {
-                    val dataId = getUInt(0, data)
+                    val channelsData = ArrayList<Float>()
+                    for (channel in 0u until channels) {
+                        val channelData = getInt(4 * channel.toInt(), data)
+                        channelsData.add(channelData.toFloat())
+                    }
                     val hash = getHash(data)
-                    if (dataId > previousDataId || dataId == 0u) {
-                        val sampleCount = getUInt(4, data)
-                        if (sampleCount > 0u && sampleCount <= maxData) {
-                            val samples = ArrayList<ChannelData>()
-                            for (i in 0u until sampleCount) {
-                                val channelsData = ArrayList<Float>()
-                                for (j in 0u until channels) {
-                                    val channelData = getInt(8 + 4 * (i * channels + j).toInt(), data)
-                                    channelsData.add(channelData.toFloat())
-                                }
-                                samples.add(ChannelData(channelsData))
-                            }
-                            if (hash == getUInt(data.size - 4, data)) {
-                                samples.forEach { channelData ->
-                                    QueueService.dispatch("data-collector", channelData)
-                                }
-
-                                serialSocket.exchange("DA_RD\n$dataId", BoardResponseType.DATA_RECEIVED_OK)
-                                //Log.d(TAG, "DP: $dataId, hash: $hash, samples: $sampleCount, size: ${data.size}")
-                                previousDataId = dataId
-                            } else {
-                                Log.w(
-                                    TAG,
-                                    "Invalid hash $hash vs ${getUInt(8 + (sampleCount * channels).toInt(), data)}, data: '${String(data.asByteArray(), StandardCharsets.US_ASCII)}'"
-                                )
-                            }
-                        } else {
-                            Log.w(TAG, "Invalid sample count $sampleCount")
-                        }
+                    if (hash == getUInt(data.size - 4, data)) {
+                        QueueService.dispatch("data-collector", channelsData)
                     } else {
-                        Log.w(TAG, "Invalid data id $dataId")
+                        Log.w(
+                            TAG, "Invalid hash $hash vs ${getUInt(data.size - 4, data)}," +
+                                    " data: '${String(data.asByteArray(), StandardCharsets.US_ASCII)}'"
+                        )
                     }
                 }
             }
@@ -139,13 +122,10 @@ class BoardService(context: Context) {
             Log.d(TAG, "Min: $minValue")
             val maxValue = String(serialSocket.exchange("GET_PARAMETER\nMAX_VALUE", BoardResponseType.MAX_VALUE), StandardCharsets.US_ASCII).toFloat()
             Log.d(TAG, "Max: $maxValue")
-            val maxDataToSend = String(serialSocket.exchange("GET_PARAMETER\nMAX_DATA_TO_SEND", BoardResponseType.MAX_DATA_TO_SEND), StandardCharsets.US_ASCII).toUInt()
-            Log.d(TAG, "Max data: $maxDataToSend")
 
-            val boardInfo = BoardInfo(model, version, channels, maxDataToSend, Pair(minValue, maxValue))
+            val boardInfo = BoardInfo(model, version, channels, Pair(minValue, maxValue))
             EventBus.getDefault().post(BoardConnectedEvent(boardInfo))
             connectedBoard = boardInfo
-            previousDataId = 0u
         } catch (e: Exception) {
             Log.e(TAG, e.message, e)
         }
@@ -191,7 +171,6 @@ class BoardService(context: Context) {
                 EventBus.getDefault().post(BoardDisconnectedEvent())
             }
             this.connectedBoard = null
-            this.previousDataId = 0u
         }
     }
 }

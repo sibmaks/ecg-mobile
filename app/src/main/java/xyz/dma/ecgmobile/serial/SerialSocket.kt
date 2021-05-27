@@ -119,9 +119,12 @@ class SerialSocket(private val usbManager: UsbManager, private val permissionInt
                             }
                             responseQueue[currentType]?.add(boardResponse)
                             synchronized(responseListeners) {
-                                responseListeners[currentType]?.forEach {
-                                    executionService.submit{
-                                        it(boardResponse)
+                                val listeners = responseListeners[currentType]
+                                if(listeners != null) {
+                                    for (it in listeners) {
+                                        executionService.submit {
+                                            it(boardResponse)
+                                        }
                                     }
                                 }
                             }

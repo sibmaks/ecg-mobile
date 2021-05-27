@@ -1,5 +1,6 @@
 package xyz.dma.ecgmobile.ui.menu
 
+import android.annotation.SuppressLint
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
@@ -48,6 +49,7 @@ class ChannelMenuFragment : Fragment() {
         EventBus.getDefault().post(PlayCommand(plaing))
     }
 
+    @SuppressLint("RestrictedApi")
     private fun updatePlayIcon() {
         val iconId = if(plaing) R.drawable.baseline_pause_24 else R.drawable.baseline_play_arrow_24
         val icon = resources.getDrawable(iconId, context?.theme)
@@ -64,11 +66,13 @@ class ChannelMenuFragment : Fragment() {
         EventBus.getDefault().unregister(this)
     }
 
+    @SuppressLint("RestrictedApi")
     @Subscribe(threadMode = ThreadMode.MAIN)
     fun onBoardConnected(event: BoardConnectedEvent) {
         playButton.isEnabled = true
     }
 
+    @SuppressLint("RestrictedApi")
     @Subscribe(threadMode = ThreadMode.MAIN)
     fun onBoardDisconnected(event: BoardDisconnectedEvent) {
         plaing = false

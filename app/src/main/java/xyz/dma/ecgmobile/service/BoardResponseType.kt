@@ -8,9 +8,7 @@ enum class BoardResponseType(val code: String) {
     VERSION("\nVERSION "),
     MIN_VALUE("\nMIN_VALUE "),
     MAX_VALUE("\nMAX_VALUE "),
-    MAX_DATA_TO_SEND("\nMAX_DTS "),
     DATA("\nDATA "),
-    DATA_RECEIVED_OK("\nDR_OK"),
-    DATA_RECEIVED_INVALID_ID("\nDR_II"),
+    TOO_SLOW_ERROR("\nTSE"),
     END("\nEND"),
 }

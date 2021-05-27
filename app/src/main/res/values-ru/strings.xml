@@ -9,5 +9,6 @@
     <string name="title_channel">Канал: %s</string>
     <string name="title_board_name">Плата: %s</string>
     <string name="caption_save_data">Сохранить данные</string>
-    <string name="nothing_to_share">Nothing to share</string>
+    <string name="nothing_to_share">Нечего передавать</string>
+    <string name="error_too_slow">Слишком медленно</string>
 </resources>

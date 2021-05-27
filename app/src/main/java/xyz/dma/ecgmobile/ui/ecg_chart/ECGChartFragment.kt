@@ -53,7 +53,7 @@ class ECGChartFragment : Fragment() {
         lineChart.isDragEnabled = true
         lineChart.setScaleEnabled(true)
         lineChart.setDrawGridBackground(true)
-        lineChart.setPinchZoom(true)
+        lineChart.setPinchZoom(false)
         lineChart.setBackgroundColor(Color.WHITE)
         lineChart.legend.isEnabled = false
         lineChart.description.isEnabled = false

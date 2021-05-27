@@ -91,7 +91,7 @@ class FileDataCollector(private val parentFile: File) {
     fun onShareCommand(command: ShareDataCommand) {
         val recordFile = File(parentFile, "data-${System.currentTimeMillis()}.zip")
         val files = ArrayList<File>()
-        collectedData.values.forEach {
+        for(it in collectedData.values) {
             it.filter { fi -> !fi.second.get() }.forEach { fi -> files.add(fi.first) }
         }
         if(files.isEmpty()) {
@@ -142,7 +142,7 @@ class FileDataCollector(private val parentFile: File) {
     }
 
     private fun closeWriters() {
-        writers.values.forEach{
+        for(it in writers.values) {
             try {
                 it.close()
             } catch (e: Exception) {
@@ -152,8 +152,8 @@ class FileDataCollector(private val parentFile: File) {
     }
 
     private fun removeFiles() {
-        collectedData.forEach {
-            it.value.forEach { file ->
+        for(entry in collectedData) {
+            for (file in entry.value) {
                 try {
                     file.first.delete()
                 } catch (e: Exception) {

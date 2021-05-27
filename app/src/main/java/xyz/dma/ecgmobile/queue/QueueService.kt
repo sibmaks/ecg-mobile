@@ -39,7 +39,7 @@ object QueueService {
                     if(subscribers != null && subscribers.isNotEmpty()) {
                         val event = blockingQueue.poll(100, TimeUnit.MILLISECONDS)
                         if(event != null) {
-                            subscribers.forEach {
+                            for(it in subscribers) {
                                 try {
                                     it(event)
                                 } catch (e: Exception) {

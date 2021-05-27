@@ -1,5 +1,6 @@
 package xyz.dma.ecgmobile.ui.menu
 
+import android.annotation.SuppressLint
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
@@ -49,6 +50,7 @@ class RecordMenuFragment : Fragment() {
         EventBus.getDefault().post(RecordCommand(recording))
     }
 
+    @SuppressLint("RestrictedApi")
     private fun updateRecordIcon() {
         val iconId = if(recording) R.drawable.baseline_radio_button_checked_24 else R.drawable.baseline_radio_button_unchecked_24
         val icon = resources.getDrawable(iconId, context?.theme)
@@ -69,11 +71,13 @@ class RecordMenuFragment : Fragment() {
         EventBus.getDefault().unregister(this)
     }
 
+    @SuppressLint("RestrictedApi")
     @Subscribe(threadMode = ThreadMode.MAIN)
     fun onBoardConnected(event: BoardConnectedEvent) {
         recordButton.isEnabled = true
     }
 
+    @SuppressLint("RestrictedApi")
     @Subscribe(threadMode = ThreadMode.MAIN)
     fun onBoardDisconnected(event: BoardDisconnectedEvent) {
         recording = false
