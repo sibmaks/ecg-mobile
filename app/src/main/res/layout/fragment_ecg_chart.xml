@@ -27,6 +27,7 @@
                 android:text="@string/title_board_name"
                 app:layout_constraintBottom_toBottomOf="parent"
                 android:layout_marginBottom="8dp" android:visibility="invisible"
+                tools:visibility="visible"
                 app:layout_constraintVertical_bias="0.0" app:layout_constraintStart_toEndOf="@+id/channel_name"
                 android:layout_marginStart="16dp"/>
         <TextView
@@ -41,7 +42,38 @@
                 android:textSize="12sp"
                 android:text="@string/title_channel"
                 app:layout_constraintBottom_toBottomOf="parent"
+                tools:visibility="visible"
                 android:layout_marginBottom="8dp" android:visibility="invisible"/>
+        <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:id="@+id/sps_text"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintLeft_toLeftOf="parent"
+                android:layout_marginTop="8dp"
+                android:textColor="@android:color/darker_gray"
+                android:textSize="12sp"
+                android:text="@string/title_sps_text"
+                app:layout_constraintBottom_toBottomOf="parent"
+                android:layout_marginBottom="8dp" android:visibility="invisible"
+                tools:visibility="visible"
+                app:layout_constraintVertical_bias="0.0" app:layout_constraintStart_toEndOf="@+id/board_name"
+                android:layout_marginStart="16dp"/>
+        <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:id="@+id/baud_rate_text"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintLeft_toLeftOf="parent"
+                android:layout_marginTop="8dp"
+                android:textColor="@android:color/darker_gray"
+                android:textSize="12sp"
+                android:text="@string/title_baud_rate_text"
+                app:layout_constraintBottom_toBottomOf="parent"
+                android:layout_marginBottom="8dp" android:visibility="invisible"
+                tools:visibility="visible"
+                app:layout_constraintVertical_bias="0.0" app:layout_constraintStart_toEndOf="@+id/sps_text"
+                android:layout_marginStart="16dp"/>
     </androidx.constraintlayout.widget.ConstraintLayout>
     <com.github.mikephil.charting.charts.LineChart
             android:id="@+id/ecg_graph"

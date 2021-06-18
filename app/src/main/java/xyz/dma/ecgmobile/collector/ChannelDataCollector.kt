@@ -72,7 +72,7 @@ class ChannelDataCollector(private val maxValue: Int) {
                 for(j in 0 until maxValue) {
                     list.add(Entry(j.toFloat(), 0f))
                     /*list.add(Entry(j.toFloat(),
-                        event.boardInfo.valuesRange.first.coerceAtLeast(sin(Math.toRadians(j.toDouble() * i)).toFloat() * event.boardInfo.valuesRange.second)
+                        event.boardInfo.valuesRange.first.coerceAtLeast(sin(Math.toRadians(j.toDouble() * i)).toFloat() * (event.boardInfo.valuesRange.second / 2))
                     ))*/
                 }
                 collectedData[i] = list

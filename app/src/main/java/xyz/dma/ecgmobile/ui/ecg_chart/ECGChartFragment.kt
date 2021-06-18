@@ -19,7 +19,9 @@ import org.greenrobot.eventbus.EventBus
 import org.greenrobot.eventbus.Subscribe
 import org.greenrobot.eventbus.ThreadMode
 import xyz.dma.ecgmobile.R
+import xyz.dma.ecgmobile.event.BaudRateCalculatedEvent
 import xyz.dma.ecgmobile.event.ChannelChangedEvent
+import xyz.dma.ecgmobile.event.SpsCalculatedEvent
 import xyz.dma.ecgmobile.event.board.BoardConnectedEvent
 import xyz.dma.ecgmobile.event.board.BoardDisconnectedEvent
 import java.util.concurrent.Executors
@@ -34,6 +36,8 @@ class ECGChartFragment : Fragment() {
     private lateinit var lineDataSet: LineDataSet
     private lateinit var channelNameView: TextView
     private lateinit var boardNameView: TextView
+    private lateinit var spsView: TextView
+    private lateinit var baudRateView: TextView
     private val executionService = Executors.newFixedThreadPool(2)
 
     override fun onCreateView(
@@ -47,6 +51,8 @@ class ECGChartFragment : Fragment() {
 
         channelNameView = root.findViewById(R.id.channel_name)
         boardNameView = root.findViewById(R.id.board_name)
+        spsView = root.findViewById(R.id.sps_text)
+        baudRateView = root.findViewById(R.id.baud_rate_text)
         lineChart = root.findViewById(R.id.ecg_graph)
 
         lineChart.setTouchEnabled(true)
@@ -129,9 +135,24 @@ class ECGChartFragment : Fragment() {
     }
 
     @Subscribe(threadMode = ThreadMode.MAIN)
+    fun onChannelChanged(event: SpsCalculatedEvent) {
+        spsView.text = resources.getString(R.string.title_sps_text).format(event.sps)
+    }
+    @Subscribe(threadMode = ThreadMode.MAIN)
+    fun onChannelChanged(event: BaudRateCalculatedEvent) {
+        baudRateView.text = resources.getString(R.string.title_baud_rate_text).format(event.baudRate)
+    }
+
+    @Subscribe(threadMode = ThreadMode.MAIN)
     fun onBoardConnected(event: BoardConnectedEvent) {
         boardNameView.text = resources.getString(R.string.title_board_name).format(event.boardInfo.name)
         boardNameView.visibility = View.VISIBLE
+
+        spsView.text = resources.getString(R.string.title_sps_text).format(0)
+        spsView.visibility = View.VISIBLE
+
+        baudRateView.text = resources.getString(R.string.title_baud_rate_text).format(0)
+        baudRateView.visibility = View.VISIBLE
 
         lineChart.axisLeft.axisMinimum = event.boardInfo.valuesRange.first
         lineChart.axisLeft.axisMaximum = event.boardInfo.valuesRange.second
@@ -149,6 +170,8 @@ class ECGChartFragment : Fragment() {
     fun onBoardDisconnected(event: BoardDisconnectedEvent) {
         channelNameView.visibility = View.INVISIBLE
         boardNameView.visibility = View.INVISIBLE
+        spsView.visibility = View.INVISIBLE
+        baudRateView.visibility = View.INVISIBLE
     }
 
     override fun onResume() {

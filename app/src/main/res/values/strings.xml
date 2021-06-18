@@ -11,4 +11,6 @@
     <string name="caption_save_data">Save data</string>
     <string name="nothing_to_share">Nothing to share</string>
     <string name="error_too_slow">Too slow</string>
+    <string name="title_sps_text">SPS: %d</string>
+    <string name="title_baud_rate_text">Baud rate: %d</string>
 </resources>

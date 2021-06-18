@@ -11,4 +11,6 @@
     <string name="caption_save_data">Сохранить данные</string>
     <string name="nothing_to_share">Нечего передавать</string>
     <string name="error_too_slow">Слишком медленно</string>
+    <string name="title_sps_text">SPS: $d</string>
+    <string name="title_baud_rate_text">Baud rate: %d</string>
 </resources>

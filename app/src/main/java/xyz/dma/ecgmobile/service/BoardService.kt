@@ -12,7 +12,9 @@ import org.greenrobot.eventbus.Subscribe
 import org.greenrobot.eventbus.ThreadMode
 import xyz.dma.ecgmobile.R
 import xyz.dma.ecgmobile.entity.BoardInfo
+import xyz.dma.ecgmobile.entity.ChannelData
 import xyz.dma.ecgmobile.event.AlertTriggeredEvent
+import xyz.dma.ecgmobile.event.SpsCalculatedEvent
 import xyz.dma.ecgmobile.event.board.BoardConnectedEvent
 import xyz.dma.ecgmobile.event.board.BoardDisconnectedEvent
 import xyz.dma.ecgmobile.event.command.PlayCommand
@@ -20,8 +22,11 @@ import xyz.dma.ecgmobile.queue.QueueService
 import xyz.dma.ecgmobile.serial.SerialSocket
 import java.nio.charset.StandardCharsets
 import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
+import kotlin.math.roundToLong
 
 private const val ACTION_USB_PERMISSION = "xyz.dma.ecgmobile.USB_PERMISSION"
 private const val TAG = "EM-BoardService"
@@ -34,7 +39,9 @@ class BoardService(context: Context) {
     private var connectedBoard: BoardInfo? = null
     private var connectionLock = ReentrantLock()
     private var dataLock = ReentrantLock()
-    private val executorService = Executors.newSingleThreadExecutor()
+    private var values = AtomicInteger(0)
+    private var paused = true
+    private val executorService = Executors.newFixedThreadPool(2)
 
     init {
         val filter = IntentFilter(ACTION_USB_PERMISSION)
@@ -60,44 +67,78 @@ class BoardService(context: Context) {
             }
         }, filter)
 
-        serialSocket.addListener(BoardResponseType.TOO_SLOW_ERROR) {
-            EventBus.getDefault().post(AlertTriggeredEvent(R.string.error_too_slow))
-        }
-
-        serialSocket.addListener(BoardResponseType.DATA) {
-            val channels = connectedBoard?.channels
-            val data = it.data?.asUByteArray()
-            if(channels != null && data != null && data.size > 4 && data.size % 4 == 0) {
-                dataLock.withLock {
-                    val channelsData = ArrayList<Float>()
-                    for (channel in 0u until channels) {
-                        val channelData = getInt(4 * channel.toInt(), data)
-                        channelsData.add(channelData.toFloat())
+        executorService.submit {
+            var time = System.currentTimeMillis()
+            val interval = 1000f
+            val halfInterval = (interval / 2f).roundToLong()
+            while (!Thread.interrupted()) {
+                val now = System.currentTimeMillis()
+                if (now - time >= interval) {
+                    val sps = values.get()
+                    values.addAndGet(-sps)
+                    if(connectedBoard != null) {
+                        EventBus.getDefault().post(SpsCalculatedEvent(sps))
                     }
-                    val hash = getHash(data)
-                    if (hash == getUInt(data.size - 4, data)) {
-                        QueueService.dispatch("data-collector", channelsData)
-                    } else {
-                        Log.w(
-                            TAG, "Invalid hash $hash vs ${getUInt(data.size - 4, data)}," +
-                                    " data: '${String(data.asByteArray(), StandardCharsets.US_ASCII)}'"
-                        )
-                    }
+                    time = now
+                } else if(now - time <= halfInterval) {
+                    TimeUnit.MILLISECONDS.sleep(halfInterval)
                 }
             }
         }
 
-        tryConnect()
-    }
-
-    private fun getHash(data: UByteArray): UInt {
-        var result = getUInt(0, data)
-
-        for(i in 1 until (data.size / 4 - 1)) {
-            result = result.xor(getUInt(i * 4, data))
+        serialSocket.addListener(BoardResponseType.TOO_SLOW_ERROR) {
+            EventBus.getDefault().post(AlertTriggeredEvent(R.string.error_too_slow))
         }
 
-        return result
+        /*serialSocket.addListener(BoardResponseType.DATA) {
+            val channels = connectedBoard?.channels
+            val data = it.data?.asUByteArray()
+            if (channels != null && data != null && data.size >= 8 && data.size % 4 == 0) {
+                dataLock.withLock {
+                    val channelsData = ArrayList<Float>()
+                    for (j in 0 until channels.toInt()) {
+                        val channelData = getInt(4 * j, data)
+                        channelsData.add(channelData.toFloat())
+                    }
+                    values.incrementAndGet()
+                    QueueService.dispatch("data-collector", ChannelData(channelsData))
+                }
+            } else {
+                Log.w(TAG, "Invalid data, $channels, $data, ${data?.size}")
+            }
+        }*/
+
+        serialSocket.addListener(BoardResponseType.DATA) {
+            val channels = connectedBoard?.channels
+            val data = it.data?.asUByteArray()
+            if (channels != null && data != null && data.size >= 8 && data.size % 4 == 0) {
+                dataLock.withLock {
+                    var hash : UInt = channels
+                    val channelsData = ArrayList<Float>()
+                    for (j in 0 until channels.toInt()) {
+                        val channelData = getInt(4 * j, data)
+                        hash = hash xor getUInt(4 * j, data)
+                        channelsData.add(channelData.toFloat())
+                    }
+                    if (hash == getUInt(data.size - 4, data)) {
+                        values.incrementAndGet()
+                        if(!paused) {
+                            QueueService.dispatch("data-collector", ChannelData(channelsData))
+                        } else {
+
+                        }
+                    } else {
+                        Log.w(TAG, "Invalid hash $hash vs ${getUInt(data.size - 4, data)}, data: '${
+                            String(data.asByteArray(), StandardCharsets.US_ASCII)
+                        }'")
+                    }
+                }
+            } else {
+                Log.w(TAG, "Invalid data, $channels, $data, ${data?.size}")
+            }
+        }
+
+        tryConnect()
     }
 
     private fun getInt(offset: Int, bytes: UByteArray): Int {
@@ -153,6 +194,7 @@ class BoardService(context: Context) {
 
     @Subscribe(threadMode = ThreadMode.ASYNC)
     fun onPlayCommand(command: PlayCommand) {
+        paused = !command.play
         if(command.play) {
             serialSocket.exchange("ON_DF", BoardResponseType.DATA_FLOW_ON)
         } else {
