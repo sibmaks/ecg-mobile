@@ -29,7 +29,7 @@ class FileDataCollector(private val parentFile: File) {
     private val collectedData = ConcurrentHashMap<BoardInfo, List<Pair<File, AtomicBoolean>>>()
     private val writers = ConcurrentHashMap<File, BufferedWriter>()
     private var activeBoard: BoardInfo? = null
-    var collectData = false
+    private var collectData = false
 
     init {
         if(!recordsPath.exists()) {

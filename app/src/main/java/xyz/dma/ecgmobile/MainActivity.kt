@@ -10,8 +10,8 @@ import org.greenrobot.eventbus.Subscribe
 import org.greenrobot.eventbus.ThreadMode
 import xyz.dma.ecgmobile.collector.ChannelDataCollector
 import xyz.dma.ecgmobile.collector.FileDataCollector
-import xyz.dma.ecgmobile.event.ShareDataEvent
 import xyz.dma.ecgmobile.event.AlertTriggeredEvent
+import xyz.dma.ecgmobile.event.ShareDataEvent
 import xyz.dma.ecgmobile.service.BoardService
 
 
@@ -34,7 +34,7 @@ class MainActivity : AppCompatActivity() {
         EventBus.getDefault().register(this)
         fileDataCollector.onResume()
         channelDataCollector.onResume()
-        boardService.onStart()
+        boardService.onResume()
     }
 
     override fun onPause() {
@@ -42,7 +42,7 @@ class MainActivity : AppCompatActivity() {
         EventBus.getDefault().unregister(this)
         fileDataCollector.onPause()
         channelDataCollector.onPause()
-        boardService.onStop()
+        boardService.onPause()
     }
 
     override fun onStop() {
@@ -50,11 +50,9 @@ class MainActivity : AppCompatActivity() {
         boardService.onStop()
     }
 
-    @Subscribe(threadMode = ThreadMode.ASYNC)
+    @Subscribe(threadMode = ThreadMode.MAIN)
     fun onAlertEvent(event: AlertTriggeredEvent) {
-        runOnUiThread {
-            Toast.makeText(this, resources.getText(event.alertId), Toast.LENGTH_LONG).show()
-        }
+        Toast.makeText(this, resources.getText(event.alertId), Toast.LENGTH_LONG).show()
     }
 
     @Subscribe(threadMode = ThreadMode.ASYNC)

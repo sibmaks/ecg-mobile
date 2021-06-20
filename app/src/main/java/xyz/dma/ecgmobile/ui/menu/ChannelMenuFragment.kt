@@ -12,6 +12,7 @@ import org.greenrobot.eventbus.EventBus
 import org.greenrobot.eventbus.Subscribe
 import org.greenrobot.eventbus.ThreadMode
 import xyz.dma.ecgmobile.R
+import xyz.dma.ecgmobile.event.PlayChangedEvent
 import xyz.dma.ecgmobile.event.board.BoardConnectedEvent
 import xyz.dma.ecgmobile.event.board.BoardDisconnectedEvent
 import xyz.dma.ecgmobile.event.command.ChangeChannelCommand
@@ -44,9 +45,13 @@ class ChannelMenuFragment : Fragment() {
     }
 
     private fun onPlay() {
-        plaing = !plaing
+        EventBus.getDefault().post(PlayCommand(!plaing))
+    }
+
+    @Subscribe(threadMode = ThreadMode.MAIN)
+    fun onPlayEvent(event: PlayChangedEvent) {
+        plaing = event.play
         updatePlayIcon()
-        EventBus.getDefault().post(PlayCommand(plaing))
     }
 
     @SuppressLint("RestrictedApi")

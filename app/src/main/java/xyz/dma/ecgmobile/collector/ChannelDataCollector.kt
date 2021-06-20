@@ -21,7 +21,7 @@ class ChannelDataCollector(private val maxValue: Int) {
     private var index = 0
     private var channels = 0
     private var activeChannel = 0
-    var collectData = false
+    private var collectData = false
 
     init {
         QueueService.subscribe("data-collector") { onData(it) }
@@ -29,6 +29,9 @@ class ChannelDataCollector(private val maxValue: Int) {
 
     private fun onData(data: Any) {
         if (data is ChannelData) {
+            if(!collectData) {
+                return
+            }
             if(data.data.size == collectedData.size) {
                 for (channel in data.data.indices) {
                     val list = collectedData[channel + 1]

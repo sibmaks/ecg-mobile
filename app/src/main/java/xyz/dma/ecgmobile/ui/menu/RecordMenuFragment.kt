@@ -12,6 +12,7 @@ import org.greenrobot.eventbus.EventBus
 import org.greenrobot.eventbus.Subscribe
 import org.greenrobot.eventbus.ThreadMode
 import xyz.dma.ecgmobile.R
+import xyz.dma.ecgmobile.event.RecordChangeEvent
 import xyz.dma.ecgmobile.event.board.BoardConnectedEvent
 import xyz.dma.ecgmobile.event.board.BoardDisconnectedEvent
 import xyz.dma.ecgmobile.event.command.ClearDataCommand
@@ -45,9 +46,13 @@ class RecordMenuFragment : Fragment() {
     }
 
     private fun onRecord() {
-        recording = !recording
+        EventBus.getDefault().post(RecordCommand(!recording))
+    }
+
+    @Subscribe(threadMode = ThreadMode.MAIN)
+    fun onRecordEvent(event: RecordChangeEvent) {
+        recording = event.on
         updateRecordIcon()
-        EventBus.getDefault().post(RecordCommand(recording))
     }
 
     @SuppressLint("RestrictedApi")

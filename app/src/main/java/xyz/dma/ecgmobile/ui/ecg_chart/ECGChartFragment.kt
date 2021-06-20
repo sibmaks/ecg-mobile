@@ -19,11 +19,10 @@ import org.greenrobot.eventbus.EventBus
 import org.greenrobot.eventbus.Subscribe
 import org.greenrobot.eventbus.ThreadMode
 import xyz.dma.ecgmobile.R
-import xyz.dma.ecgmobile.event.BaudRateCalculatedEvent
 import xyz.dma.ecgmobile.event.ChannelChangedEvent
-import xyz.dma.ecgmobile.event.SpsCalculatedEvent
 import xyz.dma.ecgmobile.event.board.BoardConnectedEvent
 import xyz.dma.ecgmobile.event.board.BoardDisconnectedEvent
+import xyz.dma.ecgmobile.event.statistic.StatisticCalculatedEvent
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import kotlin.math.roundToLong
@@ -135,12 +134,15 @@ class ECGChartFragment : Fragment() {
     }
 
     @Subscribe(threadMode = ThreadMode.MAIN)
-    fun onChannelChanged(event: SpsCalculatedEvent) {
-        spsView.text = resources.getString(R.string.title_sps_text).format(event.sps)
-    }
-    @Subscribe(threadMode = ThreadMode.MAIN)
-    fun onChannelChanged(event: BaudRateCalculatedEvent) {
-        baudRateView.text = resources.getString(R.string.title_baud_rate_text).format(event.baudRate)
+    fun onChannelChanged(event: StatisticCalculatedEvent) {
+        when(event.name) {
+            "SPS" -> {
+                spsView.text = resources.getString(R.string.title_sps_text).format(event.average)
+            }
+            "BAUD" -> {
+                baudRateView.text = resources.getString(R.string.title_baud_rate_text).format(event.average)
+            }
+        }
     }
 
     @Subscribe(threadMode = ThreadMode.MAIN)
@@ -182,5 +184,10 @@ class ECGChartFragment : Fragment() {
     override fun onPause() {
         super.onPause()
         EventBus.getDefault().unregister(this)
+    }
+
+    override fun onStop() {
+        super.onStop()
+        executionService.shutdown()
     }
 }

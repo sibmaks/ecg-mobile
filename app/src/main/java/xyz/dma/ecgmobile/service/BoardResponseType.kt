@@ -11,6 +11,5 @@ enum class BoardResponseType(val code: String) {
     MIN_VALUE(START_CHAR + "MNV"),
     MAX_VALUE(START_CHAR + "MXV"),
     DATA(START_CHAR + "DAT"),
-    TOO_SLOW_ERROR(START_CHAR + "TSE"),
     END(START_CHAR + "END"),
 }

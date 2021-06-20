@@ -7,33 +7,28 @@ import com.hoho.android.usbserial.driver.CdcAcmSerialDriver
 import com.hoho.android.usbserial.driver.UsbSerialPort
 import com.hoho.android.usbserial.driver.UsbSerialProber
 import com.hoho.android.usbserial.util.SerialInputOutputManager
-import org.greenrobot.eventbus.EventBus
-import xyz.dma.ecgmobile.event.BaudRateCalculatedEvent
+import java8.util.concurrent.CompletableFuture
 import xyz.dma.ecgmobile.service.BoardResponseType
 import xyz.dma.ecgmobile.service.START_CHAR
+import xyz.dma.ecgmobile.service.StatisticService
 import java.nio.charset.StandardCharsets
 import java.util.concurrent.*
-import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
-import kotlin.math.roundToLong
 
 private const val TAG = "EM-SerialSocket"
-private const val DRIVER_WRITE_TIMEOUT = 100
+private const val DRIVER_WRITE_TIMEOUT = 50
+private val STUB_ARRAY = ByteArray(0)
 
-class SerialSocket(private val usbManager: UsbManager, private val permissionIntent: PendingIntent) : SerialInputOutputManager.Listener {
-    private val connectionLock = ReentrantLock()
-    private val receivedBytes = AtomicInteger(0)
+class SerialSocket(private val usbManager: UsbManager, private val permissionIntent: PendingIntent,
+    private val dataListener: (ByteArray) -> Unit) : SerialInputOutputManager.Listener {
     private val byteQueue = LinkedBlockingQueue<Byte>()
-    private val responseQueue = ConcurrentHashMap<BoardResponseType, LinkedBlockingQueue<BoardResponse>>()
-    private val responseListeners = ConcurrentHashMap<BoardResponseType, MutableList<(BoardResponse) -> Unit>>()
-    private val responseList = LinkedBlockingQueue<Pair<BoardResponseType, BoardResponse>>()
+    private val listCreationLock = ReentrantLock()
+    private val expectedResponses = ConcurrentHashMap<BoardResponseType, MutableList<CompletableFuture<BoardResponse>>>()
     private val usbSerialProber: UsbSerialProber
     private lateinit var usbSerialPort: UsbSerialPort
     private var serialInputOutputManager: SerialInputOutputManager? = null
-    private val executionService: ExecutorService = Executors.newFixedThreadPool(6)
-    private val possibleResponses = ArrayList<CandidateResponse>()
-    private val removingResponse = ArrayList<CandidateResponse>()
+    private val executionService: ExecutorService = Executors.newFixedThreadPool(4)
 
     init {
         val probeTable = UsbSerialProber.getDefaultProbeTable()
@@ -42,88 +37,48 @@ class SerialSocket(private val usbManager: UsbManager, private val permissionInt
         executionService.submit {
             receive()
         }
-        executionService.submit {
-            while (!Thread.currentThread().isInterrupted) {
-                try {
-                    val board = responseList.take()
-                    if(board != null) {
-                        val listeners = responseListeners[board.first]
-                        listeners?.forEach {
-                            it(board.second)
-                        }
-                    }
-                } catch (e: Exception) {
-                    Log.e(TAG, "Receive exception: ${e.message}", e)
-                }
-            }
-        }
-        executionService.submit {
-            var time = System.currentTimeMillis()
-            val interval = 1000f
-            val halfInterval = (interval / 2f).roundToLong()
-            while (!Thread.interrupted()) {
-                val now = System.currentTimeMillis()
-                if (now - time >= interval) {
-                    val baudRate = receivedBytes.get()
-                    receivedBytes.addAndGet(-baudRate)
-                    EventBus.getDefault().post(BaudRateCalculatedEvent(baudRate))
-                    time = now
-                } else if(now - time <= halfInterval) {
-                    TimeUnit.MILLISECONDS.sleep(halfInterval)
-                }
-            }
-        }
     }
 
-    fun addListener(boardResponseType: BoardResponseType, listener: (BoardResponse) -> Unit) {
-        synchronized(responseListeners) {
-            if(responseListeners[boardResponseType] == null) {
-                responseListeners[boardResponseType] = ArrayList()
-            }
-        }
-        responseListeners[boardResponseType]?.add(listener)
-    }
-
+    @Synchronized
     fun tryConnect() : Boolean {
-        connectionLock.withLock {
-            try {
-                if (isConnected()) {
-                    return true
-                }
-                val availableDrivers = usbSerialProber.findAllDrivers(usbManager)
-                if (availableDrivers.isEmpty()) {
-                    return false
-                }
-
-                val driver = availableDrivers[0]
-                val connection = if (usbManager.hasPermission(driver.device)) {
-                    usbManager.openDevice(driver.device)
-                } else {
-                    usbManager.requestPermission(driver.device, permissionIntent)
-                    return false
-                }
-
-                usbSerialPort = driver.ports[0] // Most devices have just one port (port 0)
-
-                usbSerialPort.open(connection)
-                usbSerialPort.setParameters(
-                    // https://stackoverflow.com/questions/44912175/is-it-possible-to-achieve-usb-baud-rate-bigger-than-115200-baud-on-android
-                    2457600,
-                    UsbSerialPort.DATABITS_8,
-                    UsbSerialPort.STOPBITS_1,
-                    UsbSerialPort.PARITY_NONE
-                )
-                usbSerialPort.dtr = true
-                usbSerialPort.rts = true
-
-                serialInputOutputManager = SerialInputOutputManager(usbSerialPort, this)
-                executionService.submit(serialInputOutputManager)
-                Log.d(TAG, "Device connected")
+        try {
+            if (isConnected()) {
                 return true
-            } catch (e: Exception) {
-                Log.e(TAG, "Try connect exception: ${e.message}", e)
+            }
+            val availableDrivers = usbSerialProber.findAllDrivers(usbManager)
+            if (availableDrivers.isEmpty()) {
                 return false
             }
+
+            val driver = availableDrivers[0]
+            val connection = if (usbManager.hasPermission(driver.device)) {
+                usbManager.openDevice(driver.device)
+            } else {
+                usbManager.requestPermission(driver.device, permissionIntent)
+                return false
+            }
+
+            usbSerialPort = driver.ports[0] // Most devices have just one port (port 0)
+
+            usbSerialPort.open(connection)
+            usbSerialPort.setParameters(
+                // https://stackoverflow.com/questions/44912175/is-it-possible-to-achieve-usb-baud-rate-bigger-than-115200-baud-on-android
+                1228800,
+                UsbSerialPort.DATABITS_8,
+                UsbSerialPort.STOPBITS_1,
+                UsbSerialPort.PARITY_NONE
+            )
+            usbSerialPort.dtr = true
+            usbSerialPort.rts = true
+
+            reset()
+            serialInputOutputManager = SerialInputOutputManager(usbSerialPort, this)
+            executionService.submit(serialInputOutputManager)
+            Log.d(TAG, "Device connected")
+            return true
+        } catch (e: Exception) {
+            Log.e(TAG, "Try connect exception: ${e.message}", e)
+            return false
         }
     }
 
@@ -131,8 +86,10 @@ class SerialSocket(private val usbManager: UsbManager, private val permissionInt
     class BoardResponse(var data: ByteArray?)
 
     private fun receive() {
+        val possibleResponses = ArrayList<CandidateResponse>()
+        val removingResponse = ArrayList<CandidateResponse>()
         var currentType: BoardResponseType? = null
-        val buffer = ArrayList<Byte>()
+        val buffer = ArrayList<Byte>(512)
 
         while (!Thread.currentThread().isInterrupted) {
             try {
@@ -154,25 +111,25 @@ class SerialSocket(private val usbManager: UsbManager, private val permissionInt
                                 //Log.d(TAG, "New response: $currentType")
                                 BoardResponse(null)
                             }
-                            responseQueue[currentType]?.add(boardResponse)
-                            responseList.put(Pair(currentType, boardResponse))
+                            val futures = expectedResponses[currentType]
+                            if(futures != null) {
+                                val iFutures = ArrayList(futures)
+                                iFutures.forEach { future -> future.complete(boardResponse) }
+                                futures.removeAll(iFutures)
+                            }
                         }
                         buffer.clear()
                         possibleResponses.clear()
                         removingResponse.clear()
                         currentType = response.type
-                        if(currentType == BoardResponseType.DATA) {
+                        if (currentType == BoardResponseType.DATA) {
                             val size = byteQueue.take().toUByte().toInt()
-                            if(size != 36) {
-                                Log.d(TAG, "Incoming data packet: $size")
-                            }
-                            for(i in 0 until size) {
+                            for (j in 0 until size) {
                                 buffer.add(byteQueue.take())
                             }
                             val responseContent = buffer.toByteArray()
                             //Log.d(TAG, "New response: $currentType, ${String(responseContent, StandardCharsets.US_ASCII)}")
-                            val boardResponse = BoardResponse(responseContent)
-                            responseList.put(Pair(currentType, boardResponse))
+                            dataListener(responseContent)
                             currentType = null
                             buffer.clear()
                         }
@@ -187,7 +144,7 @@ class SerialSocket(private val usbManager: UsbManager, private val permissionInt
                 possibleResponses.removeAll(removingResponse)
                 removingResponse.clear()
 
-                if(char == START_CHAR) {
+                if (char == START_CHAR) {
                     for (response in BoardResponseType.values()) {
                         possibleResponses.add(CandidateResponse(response, 1))
                     }
@@ -197,6 +154,7 @@ class SerialSocket(private val usbManager: UsbManager, private val permissionInt
                     Log.w(TAG, "Too big buffer, clear: ${String(buffer.toByteArray(), StandardCharsets.US_ASCII)}")
                     buffer.clear()
                 }
+
             } catch (e: Exception) {
                 Log.e(TAG, "Receive exception: ${e.message}", e)
             }
@@ -205,7 +163,7 @@ class SerialSocket(private val usbManager: UsbManager, private val permissionInt
 
     override fun onNewData(data: ByteArray?) {
         if (data != null) {
-            receivedBytes.addAndGet(data.size)
+            StatisticService.tick("BAUD", data.size)
             for (a in data) {
                 byteQueue.add(a)
             }
@@ -214,12 +172,11 @@ class SerialSocket(private val usbManager: UsbManager, private val permissionInt
 
     private fun reset() {
         byteQueue.clear()
-        responseQueue.clear()
-        possibleResponses.clear()
-        removingResponse.clear()
+        expectedResponses.clear()
     }
 
     private fun send(text: String) {
+        Log.d(TAG, "Send data: $text")
         usbSerialPort.write(text.toByteArray(), DRIVER_WRITE_TIMEOUT)
     }
 
@@ -228,37 +185,51 @@ class SerialSocket(private val usbManager: UsbManager, private val permissionInt
             Log.e(TAG, "On run error: ${e.message}", e)
         }
         if(!isConnected()) {
-            reset()
+            tryConnect()
         }
+        Log.d(TAG, "Device state: ${serialInputOutputManager?.state}")
     }
 
     fun close() {
-        reset()
         if (isConnected()) {
             usbSerialPort.close()
         }
     }
 
-    fun exchange(request: String, responseType: BoardResponseType): ByteArray {
-        val nQueue = LinkedBlockingQueue<BoardResponse>()
-        val queue = responseQueue.putIfAbsent(responseType, nQueue) ?: nQueue
-        var response: BoardResponse? = null
+    fun exchange(request: String, responseType: BoardResponseType, contentRequired: Boolean = true): ByteArray {
+        var futures = expectedResponses[responseType]
+        if(futures == null) {
+            listCreationLock.withLock {
+                futures = expectedResponses[responseType]
+                if(futures == null) {
+                    expectedResponses[responseType] = CopyOnWriteArrayList()
+                    futures = expectedResponses[responseType]
+                }
+            }
+        }
+        val completableFuture = CompletableFuture<BoardResponse>()
+        futures?.add(completableFuture)
         do {
             try {
                 send("${request}\n")
                 try {
-                    response = queue.poll(100, TimeUnit.MILLISECONDS)
-                } catch (ignore: InterruptedException) {
+                    val response = completableFuture.get(10, TimeUnit.MILLISECONDS)
+                    if(response != null) {
+                        val data = response.data
+                        if(data != null) {
+                            return data
+                        } else if(!contentRequired) {
+                            return STUB_ARRAY
+                        }
+                    }
+                } catch (ignore: TimeoutException) {
 
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Exchange exception: ${e.message}", e)
             }
-        } while (response?.data == null && isConnected())
-        if (response?.data == null) {
-            throw RuntimeException("Disconnected")
-        }
-        return response.data!!
+        } while (isConnected())
+        throw RuntimeException("Disconnected")
     }
 
     fun isConnected(): Boolean {
