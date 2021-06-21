@@ -25,15 +25,19 @@ private const val ACTION_USB_PERMISSION = "xyz.dma.ecgmobile.USB_PERMISSION"
 private const val TAG = "EM-BoardService"
 
 
-class BoardService(context: Context) {
+class BoardService(context: Context) : SerialSocket.Listener {
 
     private val serialSocket: SerialSocket
     private var channels = 0u
+    private var dataBuffer = ByteArray(0)
     private val executorService = Executors.newFixedThreadPool(2)
 
     init {
+        EventBus.getDefault().register(this)
+
         val permissionIntent = PendingIntent.getBroadcast(context, 0, Intent(ACTION_USB_PERMISSION), 0)
-        serialSocket = SerialSocket(context.getSystemService(Context.USB_SERVICE) as UsbManager, permissionIntent, this::onDate)
+        serialSocket = SerialSocket(context.getSystemService(Context.USB_SERVICE) as UsbManager, permissionIntent,
+            this)
 
         val filter = IntentFilter(ACTION_USB_PERMISSION)
 
@@ -42,6 +46,7 @@ class BoardService(context: Context) {
 
         context.registerReceiver(object : BroadcastReceiver() {
             override fun onReceive(context: Context?, intent: Intent?) {
+                Log.d(TAG, "Received action: ${intent?.action}")
                 when (intent?.action) {
                     ACTION_USB_PERMISSION -> {
                         tryConnect()
@@ -59,35 +64,33 @@ class BoardService(context: Context) {
         }, filter)
     }
 
-    private fun onDate(bData: ByteArray) {
-        val channels = channels
-        val iChannels = channels.toInt()
-        val channelsData = Array(iChannels) { 0f }
-        if (channels > 0u) {
-            val data = bData.asUByteArray()
+    override fun onDataChanged() {
+        val channels = channels.toInt()
+        if (this.channels > 0u) {
+            val data = dataBuffer.asUByteArray()
             if (data.size >= 8 && data.size % 4 == 0) {
-                var hash: UInt = channels
-                for (j in 0 until iChannels) {
-                    val channelData = getInt(4 * j, data)
-                    hash = hash xor getUInt(4 * j, data)
-                    channelsData[j] = channelData.toFloat()
+                var hash = getUInt(0, data)
+                val channelsData = Array(channels) {
+                    if(it != 0) {
+                        hash = hash xor getUInt(4 * it, data)
+                    }
+                    getInt(4 * it, data).toFloat()
                 }
                 if (hash == getUInt(data.size - 4, data)) {
                     StatisticService.tick("SPS")
                     QueueService.dispatch("data-collector", ChannelData(channelsData))
                 } else {
-                    Log.w(
-                        TAG, "Invalid hash $hash vs ${getUInt(data.size - 4, data)}, data: '${
-                            String(bData, StandardCharsets.US_ASCII)
-                        }'"
-                    )
+                    Log.w(TAG, "Invalid hash, data: '${String(dataBuffer, StandardCharsets.US_ASCII)}'")
                 }
             } else {
-                Log.w(TAG, "Invalid data:$bData")
+                Log.w(TAG, "Invalid data (${dataBuffer.size}): ${String(dataBuffer, StandardCharsets.US_ASCII)}")
             }
         }
     }
 
+    override fun getDataBuffer(): ByteArray {
+        return dataBuffer
+    }
 
     private fun getInt(offset: Int, bytes: UByteArray): Int {
         return (bytes[offset + 3].toInt() shl 24) or (bytes[offset + 2].toInt() shl 16) or (
@@ -104,6 +107,7 @@ class BoardService(context: Context) {
             val model = String(serialSocket.exchange("GET_PARAMETER\nMODEL", BoardResponseType.MODEL), StandardCharsets.US_ASCII)
             Log.d(TAG, "Model read: $model")
             channels = String(serialSocket.exchange("GET_PARAMETER\nCHANNELS_COUNT", BoardResponseType.CHANNELS_COUNT), StandardCharsets.US_ASCII).toUInt()
+            dataBuffer = ByteArray(channels.toInt() * 4 + 4)
             Log.d(TAG, "Channels: $channels")
             val version = String(serialSocket.exchange("GET_PARAMETER\nVERSION", BoardResponseType.VERSION), StandardCharsets.US_ASCII)
             Log.d(TAG, "Version: $version")
@@ -121,19 +125,33 @@ class BoardService(context: Context) {
 
     private fun tryConnect() {
         executorService.submit {
-            if (!serialSocket.isConnected() && serialSocket.tryConnect()) {
-                onSocketConnected()
+            Log.d(TAG, "tryConnect invocation")
+            try {
+                if (serialSocket.tryConnect()) {
+                    Log.d(TAG, "Board connected")
+                    onSocketConnected()
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "On connect exception", e)
+            }
+            try {
+                if (serialSocket.tryConnect()) {
+                    Log.d(TAG, "Board connected")
+                    try {
+                        onSocketConnected()
+                    } catch (e: Exception) {
+                        Log.w(TAG, "On socket connected exception", e)
+                        if(serialSocket.isConnected()) {
+                            closeConnection()
+                        }
+                        tryConnect()
+                    }
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "On connect exception", e)
+                tryConnect()
             }
         }
-    }
-
-    fun onResume() {
-        EventBus.getDefault().register(this)
-        tryConnect()
-    }
-
-    fun onPause() {
-        EventBus.getDefault().unregister(this)
     }
 
     fun onStop() {
@@ -158,5 +176,11 @@ class BoardService(context: Context) {
         } finally {
             EventBus.getDefault().post(BoardDisconnectedEvent())
         }
+    }
+
+    override fun onDisconnect() {
+        channels = 0u
+        EventBus.getDefault().post(BoardDisconnectedEvent())
+        tryConnect()
     }
 }

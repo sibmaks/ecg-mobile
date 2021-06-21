@@ -24,6 +24,7 @@ class ChannelDataCollector(private val maxValue: Int) {
     private var collectData = false
 
     init {
+        EventBus.getDefault().register(this)
         QueueService.subscribe("data-collector") { onData(it) }
     }
 
@@ -52,14 +53,6 @@ class ChannelDataCollector(private val maxValue: Int) {
         } else {
             Log.w(TAG, "Invalid event type")
         }
-    }
-
-    fun onResume() {
-        EventBus.getDefault().register(this)
-    }
-
-    fun onPause() {
-        EventBus.getDefault().unregister(this)
     }
 
     @Subscribe(threadMode = ThreadMode.ASYNC)

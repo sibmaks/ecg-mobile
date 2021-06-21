@@ -10,7 +10,7 @@ import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
 import kotlin.math.roundToLong
 
-const val SECONDS = 5
+const val SECONDS = 1
 
 object StatisticService {
     private val executorService = Executors.newSingleThreadExecutor()

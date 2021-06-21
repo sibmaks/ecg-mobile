@@ -22,6 +22,8 @@ import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
 
+private const val TAG = "EM-DataCollector"
+
 class FileDataCollector(private val parentFile: File) {
     private val recordsPath = File(parentFile, "records")
     // board name -> collected data
@@ -35,6 +37,7 @@ class FileDataCollector(private val parentFile: File) {
         if(!recordsPath.exists()) {
             recordsPath.mkdirs()
         }
+        EventBus.getDefault().register(this)
         QueueService.subscribe("data-collector") { onData(it) }
     }
 
@@ -54,20 +57,12 @@ class FileDataCollector(private val parentFile: File) {
                                 list[channel].second.set(true)
                             }
                         } catch (e: Exception) {
-                            Log.e("EM-DataCollector", e.message, e)
+                            Log.e(TAG, e.message, e)
                         }
                     }
                 }
             }
         }
-    }
-
-    fun onResume() {
-        EventBus.getDefault().register(this)
-    }
-
-    fun onPause() {
-        EventBus.getDefault().unregister(this)
     }
 
     @Subscribe(threadMode = ThreadMode.ASYNC)
@@ -146,7 +141,7 @@ class FileDataCollector(private val parentFile: File) {
             try {
                 it.close()
             } catch (e: Exception) {
-                Log.e("EM-DataCollector", e.message, e)
+                Log.e(TAG, e.message, e)
             }
         }
     }
@@ -157,7 +152,7 @@ class FileDataCollector(private val parentFile: File) {
                 try {
                     file.first.delete()
                 } catch (e: Exception) {
-                    Log.e("EM-DataCollector", e.message, e)
+                    Log.e(TAG, e.message, e)
                 }
             }
         }

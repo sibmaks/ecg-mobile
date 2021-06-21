@@ -44,6 +44,7 @@ class ECGChartFragment : Fragment() {
         container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View? {
+        EventBus.getDefault().register(this)
         eCGChartViewModel = ViewModelProvider(this).get(ECGChartViewModel::class.java)
         val root = inflater.inflate(R.layout.fragment_ecg_chart, container, false)
         val dotsCount = resources.getInteger(R.integer.dots_counts)
@@ -174,16 +175,6 @@ class ECGChartFragment : Fragment() {
         boardNameView.visibility = View.INVISIBLE
         spsView.visibility = View.INVISIBLE
         baudRateView.visibility = View.INVISIBLE
-    }
-
-    override fun onResume() {
-        super.onResume()
-        EventBus.getDefault().register(this)
-    }
-
-    override fun onPause() {
-        super.onPause()
-        EventBus.getDefault().unregister(this)
     }
 
     override fun onStop() {

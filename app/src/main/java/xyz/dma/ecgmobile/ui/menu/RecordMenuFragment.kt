@@ -31,6 +31,7 @@ class RecordMenuFragment : Fragment() {
         container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View? {
+        EventBus.getDefault().register(this)
         recordMenuViewModel = ViewModelProvider(this).get(RecordMenuViewModel::class.java)
         val root = inflater.inflate(R.layout.fragment_record_nav_menu, container, false)
         recordButton = root.findViewById(R.id.record)
@@ -64,16 +65,6 @@ class RecordMenuFragment : Fragment() {
 
     private fun onShare() {
         EventBus.getDefault().post(ShareDataCommand())
-    }
-
-    override fun onResume() {
-        super.onResume()
-        EventBus.getDefault().register(this)
-    }
-
-    override fun onPause() {
-        super.onPause()
-        EventBus.getDefault().unregister(this)
     }
 
     @SuppressLint("RestrictedApi")

@@ -30,6 +30,7 @@ class ChannelMenuFragment : Fragment() {
         container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View? {
+        EventBus.getDefault().register(this)
         channelMenuViewModel = ViewModelProvider(this).get(ChannelMenuViewModel::class.java)
         val root = inflater.inflate(R.layout.fragment_channel_nav_menu, container, false)
         playButton = root.findViewById(R.id.play)
@@ -59,16 +60,6 @@ class ChannelMenuFragment : Fragment() {
         val iconId = if(plaing) R.drawable.baseline_pause_24 else R.drawable.baseline_play_arrow_24
         val icon = resources.getDrawable(iconId, context?.theme)
         playButton.setIcon(icon)
-    }
-
-    override fun onResume() {
-        super.onResume()
-        EventBus.getDefault().register(this)
-    }
-
-    override fun onPause() {
-        super.onPause()
-        EventBus.getDefault().unregister(this)
     }
 
     @SuppressLint("RestrictedApi")

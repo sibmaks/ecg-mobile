@@ -7,6 +7,8 @@ import java.util.concurrent.locks.Lock
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
 
+private const val TAG = "EM-QueueService"
+
 object QueueService {
     private val creationLock: Lock = ReentrantLock()
     private val subscriptionLock: Lock = ReentrantLock()
@@ -43,7 +45,7 @@ object QueueService {
                                 try {
                                     it(event)
                                 } catch (e: Exception) {
-                                    Log.e("EM-QueueService", e.message, e)
+                                    Log.e(TAG, e.message, e)
                                 }
                             }
                         }
@@ -51,7 +53,7 @@ object QueueService {
                 } catch (ignore: InterruptedException) {
 
                 } catch (e: Exception) {
-                    Log.e("EM-QueueService", e.message, e)
+                    Log.e(TAG, e.message, e)
                 }
             }
         } finally {
