@@ -29,7 +29,7 @@ class BoardService(context: Context) : SerialSocket.Listener {
 
     private val serialSocket: SerialSocket
     private var channels = 0u
-    private var dataBuffer = ByteArray(0)
+    private var dataBuffer = UByteArray(0)
     private val executorService = Executors.newFixedThreadPool(2)
 
     init {
@@ -66,8 +66,8 @@ class BoardService(context: Context) : SerialSocket.Listener {
 
     override fun onDataChanged() {
         val channels = channels.toInt()
-        if (this.channels > 0u) {
-            val data = dataBuffer.asUByteArray()
+        if (channels > 0) {
+            val data = dataBuffer
             if (data.size >= 8 && data.size % 4 == 0) {
                 var hash = getUInt(0, data)
                 val channelsData = Array(channels) {
@@ -80,15 +80,15 @@ class BoardService(context: Context) : SerialSocket.Listener {
                     StatisticService.tick("SPS")
                     QueueService.dispatch("data-collector", ChannelData(channelsData))
                 } else {
-                    Log.w(TAG, "Invalid hash, data: '${String(dataBuffer, StandardCharsets.US_ASCII)}'")
+                    Log.w(TAG, "Invalid hash, data: '${String(data.toByteArray(), StandardCharsets.US_ASCII)}'")
                 }
             } else {
-                Log.w(TAG, "Invalid data (${dataBuffer.size}): ${String(dataBuffer, StandardCharsets.US_ASCII)}")
+                Log.w(TAG, "Invalid data (${dataBuffer.size}): ${String(data.toByteArray(), StandardCharsets.US_ASCII)}")
             }
         }
     }
 
-    override fun getDataBuffer(): ByteArray {
+    override fun getDataBuffer(): UByteArray {
         return dataBuffer
     }
 
@@ -107,7 +107,7 @@ class BoardService(context: Context) : SerialSocket.Listener {
             val model = String(serialSocket.exchange("GET_PARAMETER\nMODEL", BoardResponseType.MODEL), StandardCharsets.US_ASCII)
             Log.d(TAG, "Model read: $model")
             channels = String(serialSocket.exchange("GET_PARAMETER\nCHANNELS_COUNT", BoardResponseType.CHANNELS_COUNT), StandardCharsets.US_ASCII).toUInt()
-            dataBuffer = ByteArray(channels.toInt() * 4 + 4)
+            dataBuffer = UByteArray(channels.toInt() * 4 + 4)
             Log.d(TAG, "Channels: $channels")
             val version = String(serialSocket.exchange("GET_PARAMETER\nVERSION", BoardResponseType.VERSION), StandardCharsets.US_ASCII)
             Log.d(TAG, "Version: $version")

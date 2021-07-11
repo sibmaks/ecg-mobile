@@ -7,8 +7,7 @@ import java.io.IOException
 
 private const val TAG = "EM-SerialInputOutputM"
 private const val DEBUG = false
-private const val BUFFER_SIZE = 1024 * 32
-private const val READ_TIMEOUT = 0
+private const val BUFFER_SIZE = 1024 * 4
 
 class SerialInputOutputManager(private val serialPort: UsbSerialPort, private val listener: Listener) : Runnable {
     /**
@@ -21,8 +20,7 @@ class SerialInputOutputManager(private val serialPort: UsbSerialPort, private va
         STOPPED, RUNNING, STOPPING
     }
 
-    @get:Synchronized
-    var state = State.STOPPED // Synchronized by 'this'
+    var state = State.STOPPED
         private set
 
 
@@ -89,7 +87,7 @@ class SerialInputOutputManager(private val serialPort: UsbSerialPort, private va
     @Throws(IOException::class)
     private fun step() {
         // Handle incoming data.
-        val len = serialPort.read(readBuffer, READ_TIMEOUT)
+        val len = serialPort.read(readBuffer, 0)
         if (len > 0) {
             if (DEBUG) {
                 Log.d(TAG, "Read data len=$len")

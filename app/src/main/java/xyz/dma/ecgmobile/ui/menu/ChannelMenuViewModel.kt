@@ -2,6 +2,4 @@ package xyz.dma.ecgmobile.ui.menu
 
 import androidx.lifecycle.ViewModel
 
-class ChannelMenuViewModel : ViewModel() {
-
-}
+class ChannelMenuViewModel : ViewModel()

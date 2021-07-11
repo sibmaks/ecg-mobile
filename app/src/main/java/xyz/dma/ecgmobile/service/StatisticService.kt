@@ -5,7 +5,7 @@ import xyz.dma.ecgmobile.event.statistic.StatisticCalculatedEvent
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
-import java.util.concurrent.atomic.AtomicLong
+import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
 import kotlin.math.roundToLong
@@ -14,14 +14,14 @@ const val SECONDS = 1
 
 object StatisticService {
     private val executorService = Executors.newSingleThreadExecutor()
-    private val trackedMeasurements = ConcurrentHashMap<String, AtomicLong>()
+    private val trackedMeasurements = ConcurrentHashMap<String, AtomicInteger>()
     private val creationLock = ReentrantLock()
 
     init {
         executorService.submit {
             var lastTime = System.currentTimeMillis()
             val statisticInterval = SECONDS * 1000f
-            val halfInterval = (statisticInterval / 2f).roundToLong()
+            val halfInterval = (statisticInterval / 4f).roundToLong()
             while (!Thread.interrupted()) {
                 val currentTime = System.currentTimeMillis()
                 val interval = currentTime - lastTime
@@ -33,7 +33,7 @@ object StatisticService {
                         EventBus.getDefault().post(StatisticCalculatedEvent(entry.key, (ticks * x).toInt()))
                     }
                     lastTime = currentTime
-                } else if (interval <= halfInterval) {
+                } else if (interval < halfInterval) {
                     TimeUnit.MILLISECONDS.sleep(halfInterval)
                 }
             }
@@ -42,16 +42,16 @@ object StatisticService {
 
     fun tick(trackedName: String, tickCount: Int) {
         var ticks = trackedMeasurements[trackedName]
-        if(ticks == null) {
+        if(ticks != null) {
+            ticks.addAndGet(tickCount)
+        } else {
             creationLock.withLock {
                 ticks = trackedMeasurements[trackedName]
                 if(ticks == null) {
-                    trackedMeasurements[trackedName] = AtomicLong(0)
-                    ticks = trackedMeasurements[trackedName]
+                    trackedMeasurements[trackedName] = AtomicInteger(tickCount)
                 }
             }
         }
-        ticks?.addAndGet(tickCount.toLong())
     }
 
     fun tick(trackedName: String) {

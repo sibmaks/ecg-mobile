@@ -45,7 +45,7 @@ class SerialSocket(
     interface Listener {
         fun onDataChanged()
 
-        fun getDataBuffer() : ByteArray
+        fun getDataBuffer() : UByteArray
 
         fun onDisconnect()
     }
@@ -133,7 +133,7 @@ class SerialSocket(
                         if (currentType == BoardResponseType.DATA) {
                             val dataContent = listener.getDataBuffer()
                             for(i in dataContent.indices) {
-                                dataContent[i] = byteQueue.take()
+                                dataContent[i] = byteQueue.take().toUByte()
                             }
                             //Log.d(TAG, "New response: $currentType, ${String(responseContent, StandardCharsets.US_ASCII)}")
                             listener.onDataChanged()
@@ -189,7 +189,7 @@ class SerialSocket(
     }
 
     override fun onNewData(data: ByteArray, len: Int) {
-        StatisticService.tick("BAUD", len)
+        StatisticService.tick("BAUD", len * 8)
         for(i in 0 until len) {
             byteQueue.add(data[i])
         }
